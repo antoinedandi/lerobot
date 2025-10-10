@@ -319,11 +319,15 @@ class LeRobotDatasetMetadata:
         path.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(path, index=False)
 
-        if self.episodes is not None:
-            # Remove the episodes cache directory, necessary to avoid cache bloat
-            cached_dir = get_hf_dataset_cache_dir(self.episodes)
-            if cached_dir is not None:
-                shutil.rmtree(cached_dir)
+        try:
+            if self.episodes is not None:
+                # Remove the episodes cache directory, necessary to avoid cache bloat
+                cached_dir = get_hf_dataset_cache_dir(self.episodes)
+                if cached_dir is not None:
+                    shutil.rmtree(cached_dir)
+        except Exception as e:
+            # Common on NFS when files are still open - not critical
+            logging.warning("Could not remove episodes cache directory (non-critical): %s", e)
 
         self.episodes = load_episodes(self.root)
 
@@ -753,7 +757,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         # Get available episode indices from cached dataset
         available_episodes = {
             ep_idx.item() if isinstance(ep_idx, torch.Tensor) else ep_idx
-            for ep_idx in self.hf_dataset["episode_index"]
+            for ep_idx in self.hf_dataset.unique("episode_index")
         }
 
         # Determine requested episodes
@@ -1149,11 +1153,14 @@ class LeRobotDataset(torch.utils.data.Dataset):
         else:
             df.to_parquet(path)
 
-        if self.hf_dataset is not None:
-            # Remove hf dataset cache directory, necessary to avoid cache bloat
-            cached_dir = get_hf_dataset_cache_dir(self.hf_dataset)
-            if cached_dir is not None:
-                shutil.rmtree(cached_dir)
+        try:
+            if self.hf_dataset is not None:
+                # Remove hf dataset cache directory, necessary to avoid cache bloat
+                cached_dir = get_hf_dataset_cache_dir(self.hf_dataset)
+                if cached_dir is not None:
+                    shutil.rmtree(cached_dir)
+        except Exception as e:
+            logging.warning("Could not remove hf dataset cache directory (non-critical): %s", e)
 
         self.hf_dataset = self.load_hf_dataset()
 
