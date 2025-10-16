@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import concurrent
 import contextlib
 import gc
 import logging
@@ -1012,8 +1013,13 @@ class LeRobotDataset(torch.utils.data.Dataset):
         use_batched_encoding = self.batch_encoding_size > 1
 
         if has_video_keys and not use_batched_encoding:
-            for video_key in self.meta.video_keys:
-                ep_metadata.update(self._save_episode_video(video_key, episode_index))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.meta.video_keys)) as executor:
+                futures = [
+                    executor.submit(self._save_episode_video, video_key, episode_index)
+                    for video_key in self.meta.video_keys
+                ]
+                for future in concurrent.futures.as_completed(futures):
+                    ep_metadata.update(future.result())
 
         # `meta.save_episode` need to be executed after encoding the videos
         self.meta.save_episode(episode_index, episode_length, episode_tasks, ep_stats, ep_metadata)
