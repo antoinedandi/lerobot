@@ -76,7 +76,7 @@ def write_image(image: np.ndarray | PIL.Image.Image, fpath: Path):
             img = image
         else:
             raise TypeError(f"Unsupported image type: {type(image)}")
-        img.save(fpath, compression_level=1)
+        img.save(fpath, compression_level=0)
     except Exception as e:
         print(f"Error writing image {fpath}: {e}")
 
