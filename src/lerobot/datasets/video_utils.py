@@ -308,7 +308,7 @@ def encode_video_frames(
     g: int | None = 2,
     crf: int | None = 30,
     fast_decode: int = 0,
-    log_level: int | None = av.logging.ERROR,
+    log_level: int | None = av.logging.INFO,
     overwrite: bool = False,
 ) -> None:
     """More info on ffmpeg arguments tuning on `benchmark/video/README.md`.
@@ -404,17 +404,15 @@ def encode_video_frames(
     # Codec-specific options
     if vcodec == "libsvtav1":
         # Build svtav1-params string
-        svtav1_params = "tile-columns=2:tile-rows=1:preset=13:lp=6:fast-decode=2"
+        svtav1_params = "preset=13:lp=6"
         if fast_decode:
-            # fast_decode is already included in the svtav1_params above
-            pass
+            svtav1_params += f":fast-decode={fast_decode}"
         cmd.extend(["-svtav1-params", svtav1_params])
     elif fast_decode and vcodec in ["h264", "hevc"]:
         cmd.extend(["-tune", "fastdecode"])
 
     # Output file
     cmd.append(str(video_path))
-
     # Run ffmpeg command
     try:
         subprocess.run(
