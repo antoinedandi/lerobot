@@ -1114,6 +1114,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 save the current episode in self.episode_buffer, which is filled with 'add_frame'. Defaults to
                 None.
         """
+        import time
+
+        start_time = time.time()
         episode_buffer = episode_data if episode_data is not None else self.episode_buffer
 
         validate_episode_buffer(episode_buffer, self.meta.total_episodes, self.features)
@@ -1141,17 +1144,20 @@ class LeRobotDataset(torch.utils.data.Dataset):
             episode_buffer[key] = np.stack(episode_buffer[key])
 
         # Wait for image writer to end, so that episode stats over images can be computed
-        self._wait_image_writer()
         ep_stats = compute_episode_stats(episode_buffer, self.features)
 
         ep_metadata = self._save_episode_data(episode_buffer)
+        save_episode_data_time = time.time()
+
+        self._wait_image_writer()
+        imag_ready_time = time.time()
+
         has_video_keys = len(self.meta.video_keys) > 0
         use_batched_encoding = self.batch_encoding_size > 1
-
         if has_video_keys and not use_batched_encoding:
             for video_key in self.meta.video_keys:
                 ep_metadata.update(self._save_episode_video(video_key, episode_index))
-
+        save_episode_video_time = time.time()
         # `meta.save_episode` need to be executed after encoding the videos
         self.meta.save_episode(episode_index, episode_length, episode_tasks, ep_stats, ep_metadata)
 
@@ -1167,6 +1173,15 @@ class LeRobotDataset(torch.utils.data.Dataset):
         if not episode_data:
             # Reset episode buffer and clean up temporary images (if not already deleted during video encoding)
             self.clear_episode_buffer(delete_images=len(self.meta.image_keys) > 0)
+        save_episode_time = time.time()
+
+        img_time = imag_ready_time - save_episode_data_time
+        data_time = save_episode_data_time - start_time
+        video_time = save_episode_video_time - imag_ready_time
+        total_time = save_episode_time - start_time
+        print(
+            f"Save episode times - img: {img_time:.3f}s, data: {data_time:.3f}s, video: {video_time:.3f}s, total: {total_time:.3f}s"
+        )
 
     def _batch_save_episode_video(self, start_episode: int, end_episode: int | None = None) -> None:
         """
