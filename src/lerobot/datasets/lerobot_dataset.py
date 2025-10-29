@@ -1140,11 +1140,12 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 continue
             episode_buffer[key] = np.stack(episode_buffer[key])
 
-        # Wait for image writer to end, so that episode stats over images can be computed
-        self._wait_image_writer()
         ep_stats = compute_episode_stats(episode_buffer, self.features)
 
         ep_metadata = self._save_episode_data(episode_buffer)
+        # Wait for image writer to have all images to encode.
+        self._wait_image_writer()
+
         has_video_keys = len(self.meta.video_keys) > 0
         use_batched_encoding = self.batch_encoding_size > 1
 
